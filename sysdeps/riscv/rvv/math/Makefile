@@ -3,6 +3,9 @@
 include $(..)sysdeps/riscv/rvv/math/mathvec-variants.mk
 
 ifeq ($(subdir),mathvec)
+# The constant tables are separate objects so a routine only pulls in the
+# tables of its own kernel family.
+libmvec-support += exp_data log_data pow_data sincos_data
 libmvec-support += $(sort $(foreach v,$(rvv-mathvec-variants),$(rvv-mathvec-$(v)-routine)))
 $(foreach v,$(rvv-mathvec-variants),$(eval CFLAGS-$(rvv-mathvec-$(v)-routine).c += -march=rv64gcv -mabi=lp64d))
 # Keep the native m1 kernels on the m1 code-generation strategy.  Filter the
@@ -48,6 +51,22 @@ $(objpfx)bits/riscv-mathvec-decls.h: $(common-objpfx)config.make \
 	  --decls-output $@-tmp
 	$(move-if-change) $@-tmp $@
 
+# This versioned Fortran preinclude promises both fixed and scalable log m2.
+# Only this lp64d sysdeps directory owns it in a shared multilib sysroot.
+headers += finclude/math-vector-fortran-rvv-log-m2-v1.h
+generated += finclude/math-vector-fortran-rvv-log-m2-v1.h
+before-compile += $(objpfx)finclude/math-vector-fortran-rvv-log-m2-v1.h
+$(objpfx)finclude/math-vector-fortran-rvv-log-m2-v1.h: \
+  $(..)sysdeps/riscv/rvv/math/math-vector-fortran-rvv-log-m2-v1.h.in \
+  $(common-objpfx)config.make
+	$(make-target-directory)
+ifeq ($(build-mathvec),yes)
+	cp $< $@-tmp
+else
+	sed '/^!GCC/d' $< > $@-tmp
+endif
+	$(move-if-change) $@-tmp $@
+
 # This versioned Fortran preinclude promises the five unmasked m2 families.
 # It is generated from the manifest; a missing, duplicated or masked pair is
 # a hard error.  The disabled form is comment-only and still installed.
@@ -87,5 +106,30 @@ $(objpfx)finclude/math-vector-fortran-rvv-m1-v3.h: \
 	  --enabled $(if $(filter yes,$(build-mathvec)),yes,no) \
 	  --output $@-tmp
 	$(move-if-change) $@-tmp $@
+ifeq ($(build-mathvec),yes)
+libmvec-tests += $(sort $(foreach v,$(rvv-mathvec-variants),$(rvv-mathvec-$(v)-test)))
+$(foreach v,$(rvv-mathvec-variants),$(eval $(rvv-mathvec-$(v)-test)-funcs += $(rvv-mathvec-$(v)-function)))
+CFLAGS-test-double-rvv-m2-wrappers.c += -march=rv64gcv -mabi=lp64d
+CFLAGS-test-double-rvv-m2-vla-wrappers.c += -march=rv64gcv -mabi=lp64d
+CFLAGS-test-double-rvv-m2-mask-wrappers.c += -march=rv64gcv -mabi=lp64d
+CFLAGS-test-double-rvv-m2-mask-vla-wrappers.c += -march=rv64gcv -mabi=lp64d
+CFLAGS-test-double-rvv-m1-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m1
+CFLAGS-test-double-rvv-m1-vla-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m1
+CFLAGS-test-double-rvv-m1-mask-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m1
+CFLAGS-test-double-rvv-m1-mask-vla-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m1
+CFLAGS-test-double-rvv-m4-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m4
+CFLAGS-test-double-rvv-m4-vla-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m4
+CFLAGS-test-double-rvv-m8-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m8
+CFLAGS-test-double-rvv-m8-vla-wrappers.c += -march=rv64gcv -mabi=lp64d -mrvv-max-lmul=m8
 
+tests += tst-rvv-log
+tests-static += tst-rvv-log-static
+test-extras += tst-rvv-log-vector
+extra-test-objs += tst-rvv-log-vector.o
+CFLAGS-tst-rvv-log-vector.c += -march=rv64gcv -mabi=lp64d
+$(objpfx)tst-rvv-log: $(objpfx)tst-rvv-log-vector.o $(libmvec)
+$(objpfx)tst-rvv-log-static: $(objpfx)tst-rvv-log-vector.o $(common-objpfx)mathvec/libmvec.a $(common-objpfx)math/libm.a
+$(objpfx)tst-rvv-log-static.o: $(..)sysdeps/riscv/rvv/math/tst-rvv-log.c
+	$(compile-command.c)
+endif
 endif

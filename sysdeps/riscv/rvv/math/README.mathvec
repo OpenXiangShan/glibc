@@ -1,52 +1,83 @@
-RISC-V mathvec ABI framework
-============================
+RISC-V mathvec (downstream development ABI)
+===========================================
 
-This directory carries the downstream, opt-in mathvec framework for
-RV64/lp64d.  It installs the compiler/library handshake, the generated
-declarations, the variant manifest machinery and the build scaffolding; the
-vector implementations of log, exp, sin, cos and pow arrive with the
-implementation patch that follows.  A manifest without rows exports nothing
-and makes every generated header promise nothing, so the framework is inert
-until a row describes an entry point.  GLIBC_2.45 is a local downstream
-development symbol version; it is not a claim that any symbol is included in
-an upstream glibc release.
+This is an opt-in implementation for RV64/lp64d.  The baseline libc may be
+built for rv64gc; only libmvec and the RVV test adapters use rv64gcv.  A
+caller must have RVV 1.0 and VLEN >= 128.  The delivered set is the five
+binary64 functions log, exp, sin, cos and pow, each with independent LMUL 1,
+2, 4 and 8 entries: the m2 double entry _ZGV2N4v_log passes and receives an
+LMUL=2 vector of four doubles, the m1 entry _ZGV1N2v_log an LMUL=1 vector of
+two doubles.  The names follow the current RISC-V vector-function ABI,
+without the obsolete 'r' prefix.  Unmasked scalable entries such as
+_ZGV2Nxv_log and _ZGV1Nxv_log process all VLMAX lanes of their own LMUL
+regardless of incoming vl; callers handle tails.  Masked entries take a mask
+followed by the input vector(s).  Inactive result values are unspecified and
+must not raise exceptions; see the masked notes below.
+
+Function matrix
+---------------
+The matrix is 5 scalar functions x 12 variants = 60 exported symbols in
+GLIBC_2.45:
+
+  double: log exp sin cos pow
+
+The five functions export _ZGV{1,2}N{2,4}[v]_<fn>, _ZGV{1,2}N{x}[v]_<fn>,
+_ZGV{1,2}M{2,4}[v]_<fn>, _ZGV{1,2}M{x}[v]_<fn> and the unmasked m4/m8
+_ZGV{4,8}N{8,16}[v]_<fn> and _ZGV{4,8}N{x}[v]_<fn>.  pow uses the binary 'vv'
+suffix.  Fixed-lane counts are 2/4/8/16 for m1..m8, scalable entries use lane
+marker 'x'.  The m4 and m8 masked entries are not delivered.  libmvec.abilist
+lists exactly the 60 exported names, and the manifest mathvec-variants.mk is
+the single source of truth for the symbol spelling, availability macro,
+compiler capability macro, test name and routine.
+
+The masked ABI puts the mask first.  All five functions integer-merge
+inactive lanes to a benign pattern before any floating-point work and then
+run a mask-free core: log merges to 1.0, exp, sin and cos merge to 0.0, and
+pow merges both operands to 1.0.  A signaling NaN in an inactive lane
+therefore never reaches classification, conversion or any floating-point
+operation, and no inactive lane can raise an exception or set errno.  The
+inactive result value is unspecified.  Unmasked and masked all-active results
+are bit-identical because both use the same core with the same lane count.
 
 Handshake and headers
 ---------------------
-A caller must have RVV 1.0 and VLEN >= 128.  Vector math is advertised only
-when the compiler defines __riscv_simd_math_abi_v1 == 1 and the installed
-bits/riscv-mathvec.h supplies the per-function ABI mask macros generated from
-mathvec-variants.mk.  The header additionally requires --enable-mathvec's
-fast-math path, RV64, lp64d and RVV.  A mask records the exact fixed and
-scalable, unmasked and masked variants the library promises, and
-math-vector.h attaches the registered __riscv_simd_math_abi_v1(mask)
-attribute to the individual __DECL_SIMD_* declarations; it does not restrict
-declarations merely because a particular compile-time LMUL limit would not
-generate that clone.  An ordinary compiler, or a mathvec-disabled
-installation, retains scalar declarations.  A partial library is described by
-clearing only the absent mask bits; in particular, missing m1 rows do not
-hide installed m2 entries.  A compiler that predates the 16-bit mask receives
-the historical eight-bit LMUL 1/2 subset instead of an argument it would
-reject.
+GLIBC_2.45 is a local downstream development symbol version.  It is not a
+claim that the symbols are included in any upstream glibc release.  The
+compiler handshake advertises vector math only when the compiler defines
+__riscv_simd_math_abi_v1 == 1 and the installed bits/riscv-mathvec.h supplies
+the per-function ABI mask macros generated from mathvec-variants.mk.  The
+header additionally requires --enable-mathvec's fast-math path, RV64, lp64d
+and RVV.  A mask records the exact fixed/scalable and unmasked/masked variants
+the library promises.  The header attaches the registered
+__riscv_simd_math_abi_v1(mask) attribute to the individual __DECL_SIMD_*
+declarations; it does not restrict declarations merely because a particular
+compile-time LMUL limit would not generate that clone.  An ordinary compiler,
+or a mathvec-disabled installation, retains scalar declarations.  A partial
+library is described by clearing only the absent mask bits; in particular,
+missing m1 rows do not hide the installed m2 entries.  In a complete build
+all five functions report mask 0x33ff (every unmasked and masked m1/m2 bit
+plus the unmasked m4/m8 bits), and the legacy eight-bit subset is 0xff.
 
-Mask bits, low to high, are one nibble per LMUL: m1 fixed unmasked, m1
-scalable unmasked, m1 fixed masked, m1 scalable masked, then the same four
-for m2, m4 and m8.  A zero function mask means the library promises no vector
-entry for that function.
+Algorithms and provenance
+-------------------------
+The register kernels and constant data originate from rvv-bench revision
+b63f4ae6a54d162b362664f24e55a4b430a9a0c5 under
+single/libmvec/oldarchive.  They are RVV adaptations of GNU libc dbl-64
+e_log.c/e_log_data.c, e_exp.c/e_exp_data.c, e_pow.c/e_pow_log_data.c and the
+IBM Accurate Mathematical Library s_sin.c/usncs.h/sincostab.c.  This library
+replaces the benchmark array wrappers with register cores plus fixed,
+scalable and masked ABI wrappers: log, exp and pow keep the benchmark's
+cold-lane dispatch and the log m1 kernel keeps its multiply-add operand
+order, while sin and cos keep the baseline kernel and its per-lane scalar
+fixups for |x| >= 2^26, Inf and NaN.  The wrappers select nearest rounding
+around the shift-based reductions, preserve accrued exception flags and
+restore the caller's mode; see rvv-kernel-provenance.md for the file-level
+mapping.
 
-Variant manifest
-----------------
-mathvec-variants.mk is the single source of truth.  Each variant is one row
-of literal make assignments naming the function, scalar, precision, arity,
-lane count (x when scalable), LMUL, mode, defining routine path, exported
-_ZGV symbol, symbol version, compiler capability macro, installed
-availability macro, test adapter and mask kind.  Everything else is derived
-from it: the exported symbols and their versions, the ABI masks, the
-__DECL_SIMD_* blocks, the versioned Fortran preincludes, the per-variant
-compiler flags and the generic-math test adapters.  Rows are validated
-before use - an unknown function, a wrong fixed lane count, a symbol that
-does not match the row, two rows resolving to the same ABI bit, and a missing
-unmasked m2 pair are all hard errors.
+All kernels temporarily switch the floating-point rounding mode to nearest
+and restore the caller's mode, preserving existing accrued exception flags.
+Their answers are not promised to follow non-nearest caller rounding modes.
+No real-hardware performance claim is made in this file.
 
 Layout
 ------
@@ -82,19 +113,39 @@ the build instead of installing a header that disagrees with the library.
 Pass --no-export-check only when running the generator by hand against a
 manifest that is not part of a source tree.
 
-Fortran preincludes
--------------------
-The versioned files under finclude/ come from the same manifest.  rvv-m2-v2
-promises the unmasked fixed and scalable m2 families only after it has found
-the exact pair for each; rvv-m1-v3 states one directive per function with the
-exact m1/m2 mask present.  A mathvec-disabled build, or a manifest without
-rows, installs both with comments only, so they remain valid no-SIMD
-contracts rather than falling back to a stale promise.
+Fortran and tests
+-----------------
+The versioned Fortran log-m2-v1 preinclude continues to promise only the fixed
+and scalable double log entries.  The rvv-m2-v2 preinclude promises the five
+unmasked fixed and scalable m2 families log, exp, sin, cos and pow.
+Generation fails unless each family has exactly one fixed and one scalable N
+m2 manifest entry with the expected precision, arity, lanes and symbol, so a
+partially assembled m2 library cannot be advertised.  Every row is checked
+against the canonical function/precision/arity table and two rows resolving to
+the same ABI bit are rejected instead of being ORed into one mask.  The
+rvv-m1-v3 preinclude states one directive per function with the exact mask;
+the delivered manifest yields 255 for each of the five scalars.  A
+mathvec-disabled build installs all generated files with comments only; they
+remain valid no-SIMD contracts rather than falling back to the log-only v1
+file.
 
-Loader support
---------------
-sysdeps/riscv/dl-machine.h resolves marked jump slots before entering the
-lazy trampoline, which does not preserve the vector calling convention, and
-accounts for the processor-specific dynamic tag; tst-variant-cc,
-tst-variant-cc-dlopen and tst-variant-cc-audit exercise startup, dlopen and
-audit bindings.
+Two C headers are generated: bits/riscv-mathvec.h carries the availability and
+per-function mask macros, bits/riscv-mathvec-decls.h carries the __DECL_SIMD_*
+blocks.  math-vector.h includes them only on the new handshake path and keeps
+the legacy hand-written m2-only block for old compilers.  GCC's
+riscv_simd_math_table intersects the requested mask with the entry's supported
+mask and synthesizes fixed/scalable, masked/unmasked clones; the mask-first
+call lowering builds the explicit leading mask argument for both unary and
+binary kernels.
+
+Each variant has a glibc generic-math test adapter built only for RVV and a
+GCC testsuite entry that scans the simdclone dump for the expected symbol and
+the assembler for the clone call.  The adapters cover special values, masked
+inactive-lane exception behaviour and all-active lane identity.  Sampled
+true-ULP maxima for the five kernels and their frozen corpus identity are
+recorded in the task report; they are sampled acceptance evidence, not a
+full-domain bound.
+
+The private length-first _len ABI remains experimental: only
+_ZGV{1,2}Mxv_{log,exp}_len are implemented, they are not exported, and the
+riscv-mathvec-len.h opt-in is required.

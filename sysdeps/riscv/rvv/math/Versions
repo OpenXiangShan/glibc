@@ -1,0 +1,49 @@
+# Downstream development ABI; GLIBC_2.45 does not claim upstream inclusion.
+libmvec {
+  GLIBC_2.45 {
+    _ZGV2M4v_log; _ZGV2Mxv_log;
+    _ZGV2M4v_exp; _ZGV2Mxv_exp;
+    _ZGV2N4v_cos; _ZGV2N4v_exp; _ZGV2N4v_log; _ZGV2N4v_sin;
+    _ZGV2N4vv_pow;
+    _ZGV2Nxv_cos; _ZGV2Nxv_exp; _ZGV2Nxv_log; _ZGV2Nxv_sin;
+    _ZGV2Nxvv_pow;
+    _ZGV1M2v_log; _ZGV1Mxv_log;
+    _ZGV4N8v_log; _ZGV4Nxv_log;
+    _ZGV8N16v_log; _ZGV8Nxv_log;
+    _ZGV4N8v_exp;
+    _ZGV4Nxv_exp;
+    _ZGV8N16v_exp;
+    _ZGV8Nxv_exp;
+    _ZGV4N8v_sin;
+    _ZGV4Nxv_sin;
+    _ZGV8N16v_sin;
+    _ZGV8Nxv_sin;
+    _ZGV4N8v_cos;
+    _ZGV4Nxv_cos;
+    _ZGV8N16v_cos;
+    _ZGV8Nxv_cos;
+    _ZGV4N8vv_pow;
+    _ZGV4Nxvv_pow;
+    _ZGV8N16vv_pow;
+    _ZGV8Nxvv_pow;
+    _ZGV1M2v_exp; _ZGV1Mxv_exp;
+    _ZGV1N2v_cos; _ZGV1N2v_exp; _ZGV1N2v_log; _ZGV1N2v_sin;
+    _ZGV1N2vv_pow;
+    _ZGV1Nxv_cos; _ZGV1Nxv_exp; _ZGV1Nxv_log; _ZGV1Nxv_sin;
+    _ZGV1Nxvv_pow;
+    /* The explicit-length _len ABI is experimental and intentionally not
+       exported here until the GCC lowering contract is settled.  */
+    _ZGV2M4v_sin;
+    _ZGV2Mxv_sin;
+    _ZGV1M2v_sin;
+    _ZGV1Mxv_sin;
+    _ZGV2M4v_cos;
+    _ZGV2Mxv_cos;
+    _ZGV1M2v_cos;
+    _ZGV1Mxv_cos;
+    _ZGV2M4vv_pow;
+    _ZGV2Mxvv_pow;
+    _ZGV1M2vv_pow;
+    _ZGV1Mxvv_pow;
+  }
+}
