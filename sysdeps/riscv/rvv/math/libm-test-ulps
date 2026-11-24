@@ -1,0 +1,208 @@
+# Maximal error of functions.
+#
+# Measured maximum, not a margin.  On this tree (2026-11-24, qemu 11.0.0,
+# RVV 1.0) the default rounding mode reaches 1 ULP for all 60 variants on the
+# upstream libm-test corpus, and for the 25 fixed-length variants measured
+# with a 1M-input-per-function random corpus (5 functions x m1/m2/m4/m8 at
+# VLEN=128, plus m8 at VLEN=512; no VLA and no masked variants).  Read the
+# per-block value from the driver's -v -v output: the final "Maximum error
+# found" line reflects the last summary block, which is empty for vector
+# tests.
+#
+# Vector tests only execute the default rounding mode: math/libm-test-driver.c
+# guards the directed-rounding input loops with !TEST_MATHVEC, so the three
+# extra summary blocks are printed without running any cases and carry no
+# accuracy result.  This file therefore only gates the default (RNE) test
+# name, e.g. log_rvv_m2.
+#
+# The scalar dbl-64 log documents worst-case 0.507 ULP near 1 and 0.519 ULP
+# elsewhere; that is background for the ported algorithm, not a proven bound
+# for the vector kernels.  The integer gate above records the measured
+# encoding-step maximum; an entry still matters because without one the
+# driver accepts up to 9 ULP, and a key that matches no test name is
+# silently ignored.  Re-measure after kernel changes.
+
+# cos: measured maximum error 1 ULP (libm-test; 1M random on fixed LMUL only, 2026-11-24)
+Function: "cos_rvv_m1":
+double: 1
+
+Function: "cos_rvv_m1_vla":
+double: 1
+
+Function: "cos_rvv_m1_mask":
+double: 1
+
+Function: "cos_rvv_m1_mask_vla":
+double: 1
+
+Function: "cos_rvv_m2":
+double: 1
+
+Function: "cos_rvv_m2_vla":
+double: 1
+
+Function: "cos_rvv_m2_mask":
+double: 1
+
+Function: "cos_rvv_m2_mask_vla":
+double: 1
+
+Function: "cos_rvv_m4":
+double: 1
+
+Function: "cos_rvv_m4_vla":
+double: 1
+
+Function: "cos_rvv_m8":
+double: 1
+
+Function: "cos_rvv_m8_vla":
+double: 1
+
+# exp: measured maximum error 1 ULP (libm-test; 1M random on fixed LMUL only, 2026-11-24)
+Function: "exp_rvv_m1":
+double: 1
+
+Function: "exp_rvv_m1_vla":
+double: 1
+
+Function: "exp_rvv_m1_mask":
+double: 1
+
+Function: "exp_rvv_m1_mask_vla":
+double: 1
+
+Function: "exp_rvv_m2":
+double: 1
+
+Function: "exp_rvv_m2_vla":
+double: 1
+
+Function: "exp_rvv_m2_mask":
+double: 1
+
+Function: "exp_rvv_m2_mask_vla":
+double: 1
+
+Function: "exp_rvv_m4":
+double: 1
+
+Function: "exp_rvv_m4_vla":
+double: 1
+
+Function: "exp_rvv_m8":
+double: 1
+
+Function: "exp_rvv_m8_vla":
+double: 1
+
+# log: measured maximum error 1 ULP (libm-test; 1M random on fixed LMUL only, 2026-11-24)
+Function: "log_rvv_m1":
+double: 1
+
+Function: "log_rvv_m1_vla":
+double: 1
+
+Function: "log_rvv_m1_mask":
+double: 1
+
+Function: "log_rvv_m1_mask_vla":
+double: 1
+
+Function: "log_rvv_m2":
+double: 1
+
+Function: "log_rvv_m2_vla":
+double: 1
+
+Function: "log_rvv_m2_mask":
+double: 1
+
+Function: "log_rvv_m2_mask_vla":
+double: 1
+
+Function: "log_rvv_m4":
+double: 1
+
+Function: "log_rvv_m4_vla":
+double: 1
+
+Function: "log_rvv_m8":
+double: 1
+
+Function: "log_rvv_m8_vla":
+double: 1
+
+# pow: measured maximum error 1 ULP (libm-test; 1M random on fixed LMUL only, 2026-11-24)
+Function: "pow_rvv_m1":
+double: 1
+
+Function: "pow_rvv_m1_vla":
+double: 1
+
+Function: "pow_rvv_m1_mask":
+double: 1
+
+Function: "pow_rvv_m1_mask_vla":
+double: 1
+
+Function: "pow_rvv_m2":
+double: 1
+
+Function: "pow_rvv_m2_vla":
+double: 1
+
+Function: "pow_rvv_m2_mask":
+double: 1
+
+Function: "pow_rvv_m2_mask_vla":
+double: 1
+
+Function: "pow_rvv_m4":
+double: 1
+
+Function: "pow_rvv_m4_vla":
+double: 1
+
+Function: "pow_rvv_m8":
+double: 1
+
+Function: "pow_rvv_m8_vla":
+double: 1
+
+# sin: measured maximum error 1 ULP (libm-test; 1M random on fixed LMUL only, 2026-11-24)
+Function: "sin_rvv_m1":
+double: 1
+
+Function: "sin_rvv_m1_vla":
+double: 1
+
+Function: "sin_rvv_m1_mask":
+double: 1
+
+Function: "sin_rvv_m1_mask_vla":
+double: 1
+
+Function: "sin_rvv_m2":
+double: 1
+
+Function: "sin_rvv_m2_vla":
+double: 1
+
+Function: "sin_rvv_m2_mask":
+double: 1
+
+Function: "sin_rvv_m2_mask_vla":
+double: 1
+
+Function: "sin_rvv_m4":
+double: 1
+
+Function: "sin_rvv_m4_vla":
+double: 1
+
+Function: "sin_rvv_m8":
+double: 1
+
+Function: "sin_rvv_m8_vla":
+double: 1
