@@ -29,6 +29,8 @@
 #include <dl-static-tls.h>
 #include <dl-machine-rel.h>
 
+#define DT_RISCV(x) (DT_RISCV_##x - DT_LOPROC + DT_NUM)
+
 #ifndef _RTLD_PROLOGUE
 # define _RTLD_PROLOGUE(entry)						\
 	".globl\t" __STRING (entry) "\n\t"				\
@@ -282,6 +284,42 @@ elf_machine_lazy_rel (struct link_map *map, struct r_scope_elem *scope[],
   /* Check for unexpected PLT reloc type.  */
   if (__glibc_likely (r_type == R_RISCV_JUMP_SLOT))
     {
+      if (__glibc_unlikely (map->l_info[DT_RISCV (VARIANT_CC)] != NULL))
+	{
+	  const Elf_Symndx symndx = ELFW (R_SYM) (reloc->r_info);
+	  const ElfW (Sym) *symtab =
+	    (const void *) D_PTR (map, l_info[DT_SYMTAB]);
+	  const ElfW (Sym) *sym = &symtab[symndx];
+	  if (__glibc_unlikely (sym->st_other & STO_RISCV_VARIANT_CC))
+	    {
+	      /* The lazy resolver does not preserve vector registers.  */
+	      const struct r_found_version *version = NULL;
+	      if (map->l_info[VERSYMIDX (DT_VERSYM)] != NULL)
+		{
+		  const ElfW (Half) *vernum =
+		    (const void *) D_PTR (map, l_info[VERSYMIDX (DT_VERSYM)]);
+		  version = &map->l_versions[vernum[symndx] & 0x7fff];
+		}
+	      elf_machine_rela (map, scope, reloc, sym, version, reloc_addr,
+				skip_ifunc);
+#ifdef SHARED
+	      /* This slot bypasses the generic non-lazy relocation loop,
+		 so perform its audit binding notification here as well.
+		 Per-call PLT profiling cannot preserve the vector ABI.  */
+	      if (__glibc_unlikely (GLRO (dl_naudit) > 0))
+		{
+		  struct link_map *sym_map
+		    = RESOLVE_MAP (map, scope, &sym, version,
+				   R_RISCV_JUMP_SLOT);
+		  if (sym != NULL)
+		    _dl_audit_symbind (map, NULL, reloc, sym, reloc_addr,
+				       sym_map, false);
+		}
+#endif
+	      return;
+	    }
+	}
+
       if (__glibc_unlikely (map->l_mach.plt == 0))
 	{
 	  if (l_addr)

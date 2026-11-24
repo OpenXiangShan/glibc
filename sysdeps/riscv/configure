@@ -32,6 +32,62 @@ printf "%s\n" "$libc_cv_riscv_r_align" >&6; }
 config_vars="$config_vars
 riscv-r-align = $libc_cv_riscv_r_align"
 
+if test "x$build_mathvec" = xyes; then
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether RV64/lp64d RVV intrinsics are available" >&5
+printf %s "checking whether RV64/lp64d RVV intrinsics are available... " >&6; }
+if test ${libc_cv_riscv_mathvec+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#if __riscv_xlen != 64 || !defined __riscv_float_abi_double
+# error mathvec requires RV64/lp64d
+#endif
+int rv64_lp64d;
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  libc_cv_riscv_mathvec=yes
+else case e in #(
+  e) libc_cv_riscv_mathvec=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    if test "$libc_cv_riscv_mathvec" = yes; then
+      save_CFLAGS="$CFLAGS"
+            CFLAGS="$CFLAGS -ffreestanding -march=rv64gcv -mabi=lp64d"
+      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <riscv_vector.h>
+vfloat64m2_t f (vfloat64m2_t x) { return __riscv_vfadd (x, x, 4); }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+
+else case e in #(
+  e) libc_cv_riscv_mathvec=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+      CFLAGS="$save_CFLAGS"
+    fi
+   ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $libc_cv_riscv_mathvec" >&5
+printf "%s\n" "$libc_cv_riscv_mathvec" >&6; }
+  if test "$libc_cv_riscv_mathvec" != yes; then
+    as_fn_error $? "--enable-mathvec requires RV64/lp64d and RVV 1.0 intrinsics" "$LINENO" 5
+  fi
+fi
+
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if the toolchain is sufficient to build static PIE on RISC-V" >&5
 printf %s "checking if the toolchain is sufficient to build static PIE on RISC-V... " >&6; }
 if test ${libc_cv_static_pie_on_riscv+y}

@@ -1,0 +1,7 @@
+TEST_VARIANT_CC_1.0 {
+  global:
+    variant_cc_call;
+    ordinary_cc_call;
+    variant_cc_state;
+  local: *;
+};

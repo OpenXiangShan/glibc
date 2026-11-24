@@ -1,0 +1,17 @@
+! RISC-V m1/m2 SIMD capability contract (per-function ABI masks, v3). -*- f90 -*-
+! Copyright (C) 2026 Free Software Foundation, Inc.
+! This file is part of the GNU C Library.
+!
+! The GNU C Library is free software; you can redistribute it and/or
+! modify it under the terms of the GNU Lesser General Public License as
+! published by the Free Software Foundation; either version 2.1 of the
+! License, or (at your option) any later version.
+!
+! This versioned filename is selected only by a compiler that implements
+! riscv_simd_math_abi_v1(mask) and the matching RV64/lp64d vector ABI.  The
+! mask bits, low to high, are m1 fixed-N, m1 Nx-N, m1 fixed-M, m1 Nx-M,
+! m2 fixed-N, m2 Nx-N, m2 fixed-M and m2 Nx-M.  The generator derives each
+! function's mask from the exact rows present in mathvec-variants.mk, so a
+! partial m1 library is described without advertising absent variants.
+! A mathvec-disabled build installs this file with comments only.
+@MATHVEC_FORTRAN_BUILTINS@

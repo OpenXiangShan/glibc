@@ -1,0 +1,17 @@
+! RISC-V five-family m2 SIMD capability contract (unmasked fixed and scalable). -*- f90 -*-
+! Copyright (C) 2026 Free Software Foundation, Inc.
+! This file is part of the GNU C Library.
+!
+! The GNU C Library is free software; you can redistribute it and/or
+! modify it under the terms of the GNU Lesser General Public License as
+! published by the Free Software Foundation; either version 2.1 of the
+! License, or (at your option) any later version.
+!
+! This versioned filename is selected only by a compiler that implements
+! the matching RV64/lp64d unmasked fixed and scalable vector ABIs.  The
+! generator validates that mathvec-variants.mk contains the exact m2 N pair
+! for each of log, exp, sin, cos and pow before emitting any directive.
+! A mathvec-disabled build installs this file with comments only, so it
+! remains a valid no-SIMD contract and cannot fall back to the log-only v1
+! contract in the same sysroot.
+@MATHVEC_FORTRAN_BUILTINS@

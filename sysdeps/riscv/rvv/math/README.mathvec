@@ -1,0 +1,100 @@
+RISC-V mathvec ABI framework
+============================
+
+This directory carries the downstream, opt-in mathvec framework for
+RV64/lp64d.  It installs the compiler/library handshake, the generated
+declarations, the variant manifest machinery and the build scaffolding; the
+vector implementations of log, exp, sin, cos and pow arrive with the
+implementation patch that follows.  A manifest without rows exports nothing
+and makes every generated header promise nothing, so the framework is inert
+until a row describes an entry point.  GLIBC_2.45 is a local downstream
+development symbol version; it is not a claim that any symbol is included in
+an upstream glibc release.
+
+Handshake and headers
+---------------------
+A caller must have RVV 1.0 and VLEN >= 128.  Vector math is advertised only
+when the compiler defines __riscv_simd_math_abi_v1 == 1 and the installed
+bits/riscv-mathvec.h supplies the per-function ABI mask macros generated from
+mathvec-variants.mk.  The header additionally requires --enable-mathvec's
+fast-math path, RV64, lp64d and RVV.  A mask records the exact fixed and
+scalable, unmasked and masked variants the library promises, and
+math-vector.h attaches the registered __riscv_simd_math_abi_v1(mask)
+attribute to the individual __DECL_SIMD_* declarations; it does not restrict
+declarations merely because a particular compile-time LMUL limit would not
+generate that clone.  An ordinary compiler, or a mathvec-disabled
+installation, retains scalar declarations.  A partial library is described by
+clearing only the absent mask bits; in particular, missing m1 rows do not
+hide installed m2 entries.  A compiler that predates the 16-bit mask receives
+the historical eight-bit LMUL 1/2 subset instead of an argument it would
+reject.
+
+Mask bits, low to high, are one nibble per LMUL: m1 fixed unmasked, m1
+scalable unmasked, m1 fixed masked, m1 scalable masked, then the same four
+for m2, m4 and m8.  A zero function mask means the library promises no vector
+entry for that function.
+
+Variant manifest
+----------------
+mathvec-variants.mk is the single source of truth.  Each variant is one row
+of literal make assignments naming the function, scalar, precision, arity,
+lane count (x when scalable), LMUL, mode, defining routine path, exported
+_ZGV symbol, symbol version, compiler capability macro, installed
+availability macro, test adapter and mask kind.  Everything else is derived
+from it: the exported symbols and their versions, the ABI masks, the
+__DECL_SIMD_* blocks, the versioned Fortran preincludes, the per-variant
+compiler flags and the generic-math test adapters.  Rows are validated
+before use - an unknown function, a wrong fixed lane count, a symbol that
+does not match the row, two rows resolving to the same ABI bit, and a missing
+unmasked m2 pair are all hard errors.
+
+Layout
+------
+This directory is the RV64/lp64d mathvec sysdeps directory, added to the
+sysdeps list by riscv/rv64/rvd/Implies.  It needs a different ISA for
+libmvec than for the baseline libc, and keeping the vector code in its own
+sysdeps directory keeps the vector compiler flags off everything else.  The
+kernels, the constant tables they include and the generic-math adapters
+share the directory, the way sysdeps/aarch64/fpu keeps its vector sources,
+data tables and test adapters together.  It is a sibling of riscv/rvv rather
+than part of it: riscv/rvv holds the vector string and memory routines, which
+are built for a vector baseline, while here only libmvec and the test
+adapters use -march=rv64gcv and the baseline libc stays rv64gc.
+
+Build-time scripts
+------------------
+Two generators under scripts/ are invoked by this directory's Makefile and are
+part of the build, not developer tooling:
+
+  scripts/gen-mathvec-header.py
+	Writes bits/riscv-mathvec.h (availability and per-function mask macros)
+	and bits/riscv-mathvec-decls.h (__DECL_SIMD_* blocks).
+
+  scripts/gen-mathvec-fortran.py
+	Writes the versioned Fortran preincludes.  It is also the manifest
+	parser loaded by the other generator, so both share one contract.
+
+The header generator re-checks the manifest on every build: the (version,
+symbol) set must equal the one in Versions and libmvec.abilist, every routine
+must define the symbol its row declares, and every generic-math adapter must
+call it.  A manifest edited without the matching source or ABI change fails
+the build instead of installing a header that disagrees with the library.
+Pass --no-export-check only when running the generator by hand against a
+manifest that is not part of a source tree.
+
+Fortran preincludes
+-------------------
+The versioned files under finclude/ come from the same manifest.  rvv-m2-v2
+promises the unmasked fixed and scalable m2 families only after it has found
+the exact pair for each; rvv-m1-v3 states one directive per function with the
+exact m1/m2 mask present.  A mathvec-disabled build, or a manifest without
+rows, installs both with comments only, so they remain valid no-SIMD
+contracts rather than falling back to a stale promise.
+
+Loader support
+--------------
+sysdeps/riscv/dl-machine.h resolves marked jump slots before entering the
+lazy trampoline, which does not preserve the vector calling convention, and
+accounts for the processor-specific dynamic tag; tst-variant-cc,
+tst-variant-cc-dlopen and tst-variant-cc-audit exercise startup, dlopen and
+audit bindings.

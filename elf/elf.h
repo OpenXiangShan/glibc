@@ -4145,6 +4145,7 @@ enum
 
 /* RISC-V specific values for the d_tag field.  */
 #define DT_RISCV_VARIANT_CC	(DT_LOPROC + 1)
+#define DT_RISCV_NUM		2
 
 /* BPF specific declarations.  */
 

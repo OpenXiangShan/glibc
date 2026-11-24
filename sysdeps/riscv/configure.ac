@@ -17,6 +17,33 @@ EOF
   rm -rf conftest.*])
 LIBC_CONFIG_VAR([riscv-r-align], [$libc_cv_riscv_r_align])
 
+dnl The initial downstream mathvec ABI is only supported for RV64/lp64d.
+dnl It is opt-in until its ABI and numerical coverage have been validated.
+if test "x$build_mathvec" = xyes; then
+  AC_CACHE_CHECK([whether RV64/lp64d RVV intrinsics are available],
+    [libc_cv_riscv_mathvec], [
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#if __riscv_xlen != 64 || !defined __riscv_float_abi_double
+# error mathvec requires RV64/lp64d
+#endif
+int rv64_lp64d;
+    ]])], [libc_cv_riscv_mathvec=yes], [libc_cv_riscv_mathvec=no])
+    if test "$libc_cv_riscv_mathvec" = yes; then
+      save_CFLAGS="$CFLAGS"
+      dnl Stage1 has no libc stubs.h yet: use GCC's freestanding stdint.h.
+      CFLAGS="$CFLAGS -ffreestanding -march=rv64gcv -mabi=lp64d"
+      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#include <riscv_vector.h>
+vfloat64m2_t f (vfloat64m2_t x) { return __riscv_vfadd (x, x, 4); }
+      ]])], [], [libc_cv_riscv_mathvec=no])
+      CFLAGS="$save_CFLAGS"
+    fi
+  ])
+  if test "$libc_cv_riscv_mathvec" != yes; then
+    AC_MSG_ERROR([--enable-mathvec requires RV64/lp64d and RVV 1.0 intrinsics])
+  fi
+fi
+
 dnl Test if the toolchain is new enough for static PIE.
 AC_CACHE_CHECK([if the toolchain is sufficient to build static PIE on RISC-V],
 libc_cv_static_pie_on_riscv, [
